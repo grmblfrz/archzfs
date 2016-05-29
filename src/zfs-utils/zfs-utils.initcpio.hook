@@ -25,8 +25,7 @@ zfs_mount_handler () {
             # Lets import everything and try again
             zpool import ${ZPOOL_IMPORT_FLAGS} -N -a ${ZPOOL_FORCE}
             if ! zfs_get_bootfs ; then
-                echo "ZFS: Cannot find bootfs."
-                return 1
+                die "ZFS: Cannot find bootfs."
             fi
         fi
     fi
@@ -43,8 +42,7 @@ zfs_mount_handler () {
         fi
 
         if ! zpool import ${ZPOOL_IMPORT_FLAGS} -N ${pool} ${ZPOOL_FORCE} ; then
-            echo "ZFS: Unable to import pool ${pool}."
-            return 1
+            die "ZFS: Unable to import pool ${pool}."
         fi
     fi
 
@@ -85,7 +83,7 @@ run_hook() {
     # Wait 15 seconds for ZFS devices to show up
     [[ "${zfs_wait}" == "" ]] && ZFS_WAIT="15" || ZFS_WAIT="${zfs_wait}"
 
-    if [ "${root}" = 'zfs' ]; then
+    if [[ "${root}" == 'zfs' ]]; then
         mount_handler='zfs_mount_handler'
     fi
 
@@ -104,12 +102,12 @@ run_hook() {
     esac
 
     if [ ! -f "/etc/hostid" ] ; then
-        echo "ZFS: No hostid found on kernel command line or /etc/hostid. ZFS pools may not import correctly."
+        warning "ZFS: No hostid found on kernel command line or /etc/hostid. ZFS pools may not import correctly."
     fi
 
     # Allow up to n seconds for zfs device to show up
     for i in {1..${ZFS_WAIT}}; do
-        [ -c "/dev/zfs" ] && break
+        [[ -c "/dev/zfs" ]] && break
         sleep 1
     done
 }
