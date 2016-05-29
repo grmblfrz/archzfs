@@ -426,9 +426,14 @@ check_debug() {
 
 
 generate_mode_list() {
-    for m in $(ls ${script_dir}/src/kernels); do
-        mn=$(source ${script_dir}/src/kernels/${m}; echo ${mode_name})
-        md=$(source ${script_dir}/src/kernels/${m}; echo ${mode_desc})
+    # $1: The path where the kernel things can be found, must have trailing slash
+    path="$1"
+    if [[ ${path} == "" ]]; then
+        path="${script_dir}/src/kernels"
+    fi
+    for m in $(ls ${path}); do
+        mn=$(source ${path}/${m}; echo ${mode_name})
+        md=$(source ${path}/${m}; echo ${mode_desc})
         mode_list+=("${m%.*}:${mn}:${md}")
     done
 }

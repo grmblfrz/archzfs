@@ -27,3 +27,6 @@ chroot_path="/opt/chroot/x86_64/$(whoami)"
 
 # Package backup directory
 package_backup_dir="/data/pacman/repo/archive_archzfs"
+
+export archiso_url="https://mirrors.kernel.org/archlinux/iso/2016.05.01/archlinux-2016.05.01-dual.iso"
+export archiso_sha="1ce0bbedb9fb77facda61cb8d4df763159745b18"

@@ -1,11 +1,10 @@
 {
     "variables": {
-        "http_dir": "{{env `AZT_PACKER_HTTPDIR`}}",
-        "iso_url": "{{env `AZT_ARCHISO`}}",
-        "iso_checksum": "{{env `AZT_ARCHISO_SHA`}}",
+        "http_dir": "{{env `packer_work_dir`}}",
+        "iso_url": "{{env `archiso_url`}}",
+        "iso_checksum": "{{env `archiso_sha`}}",
         "iso_checksum_type": "sha1",
-        "base_image_name": "{{env `AZT_BASE_IMAGE_BASENAME`}}",
-        "base_image_output_dir": "{{env `AZT_BASE_IMAGE_OUTPUT_DIR`}}"
+        "base_image_name": "{{env `base_image_basename`}}"
     },
     "builders": [
         {
@@ -26,6 +25,7 @@
             "disk_size": 122880,
             "ssh_username": "root",
             "ssh_password": "azfstest",
+            "ssh_wait_timeout": "7200s",
             "shutdown_command": "systemctl start poweroff.timer",
             "vm_name": "{{user `base_image_name`}}",
             "output_directory": "{{user `base_image_output_dir`}}"

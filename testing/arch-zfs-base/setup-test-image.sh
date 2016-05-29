@@ -12,7 +12,7 @@ ROOT_PARTITION="${DISK}1"
 TARGET_DIR='/mnt'
 
 # Additional packages to install after base and base-devel
-PACKAGES="ksh gptfdisk openssh syslinux parted lsscsi rsync vim git tmux htop tree python26"
+PACKAGES="gptfdisk openssh syslinux parted lsscsi rsync vim git tmux htop tree python2"
 
 echo "==> clearing partition table on ${DISK}"
 /usr/bin/sgdisk --zap ${DISK}
@@ -21,11 +21,17 @@ echo "==> destroying magic strings and signatures on ${DISK}"
 /usr/bin/dd if=/dev/zero of=${DISK} bs=512 count=2048
 /usr/bin/wipefs --all ${DISK}
 
-echo "==> creating /root partition on ${DISK}"
+echo "==> creating root partition on ${DISK}"
 /usr/bin/sgdisk --new=1:0:0 ${DISK}
 
 echo "==> setting ${DISK} bootable"
 /usr/bin/sgdisk ${DISK} --attributes=1:set:2
+
+echo "==> The disk "
+/usr/bin/sgdisk -p ${DISK}
+
+echo "==> The disk should be bootable"
+/usr/bin/sgdisk -A=1:show ${DISK}
 
 echo '==> creating /root filesystem (ext4)'
 /usr/bin/mkfs.ext4 -F -m 0 -q -L root ${ROOT_PARTITION}
@@ -37,7 +43,6 @@ echo "==> create NFS mount points"
 /usr/bin/mkdir -p /mnt/var/cache/pacman/pkg
 /usr/bin/mkdir -p /repo
 /usr/bin/mkdir -p /mnt/repo
-
 
 echo "==> Setting archiso pacman mirror"
 /usr/bin/cp mirrorlist /etc/pacman.d/mirrorlist
@@ -51,34 +56,38 @@ mount -t nfs4 -o rsize=32768,wsize=32768,timeo=3 10.0.2.2:/mnt/data/pacman/repo 
 mount -t nfs4 -o rsize=32768,wsize=32768,timeo=3 10.0.2.2:/mnt/data/pacman/repo /mnt/repo
 
 # setup pacman repositories
-echo '==> Installing local pacman package repositories'
-printf "\n%s\n%s\n" "[demz-repo-community]" "Server = file:///repo/\$repo/\$arch" >> /etc/pacman.conf
-printf "\n%s\n%s\n" "[demz-repo-core]" "Server = file:///repo/\$repo/\$arch" >> /etc/pacman.conf
-dirmngr < /dev/null
-pacman-key -r 0EE7A126
-if [[ $? != 0 ]]; then
-    exit 1
-fi
-pacman-key --lsign-key 0EE7A126
-pacman -Sy
+# echo '==> Installing local pacman package repositories'
+# printf "\n%s\n%s\n" "[demz-repo-community]" "Server = file:///repo/\$repo/\$arch" >> /etc/pacman.conf
+# printf "\n%s\n%s\n" "[demz-repo-core]" "Server = file:///repo/\$repo/\$arch" >> /etc/pacman.conf
+# dirmngr < /dev/null
+# pacman-key -r 0EE7A126
+# if [[ $? != 0 ]]; then
+    # exit 1
+# fi
+# pacman-key --lsign-key 0EE7A126
+# pacman -Sy
 
 echo '==> bootstrapping the base installation'
 /usr/bin/pacstrap -c ${TARGET_DIR} base base-devel
 
-echo '==> pulling in external package repositories'
-printf "\n%s\n%s\n" "[demz-repo-community]" "Server = file:///repo/\$repo/\$arch" >> /mnt/etc/pacman.conf
-printf "\n%s\n%s\n" "[demz-repo-core]" "Server = file:///repo/\$repo/\$arch" >> /mnt/etc/pacman.conf
-/usr/bin/arch-chroot ${TARGET_DIR} dirmngr < /dev/null
-/usr/bin/arch-chroot ${TARGET_DIR} pacman-key -r 0EE7A126
-if [[ $? != 0 ]]; then
-    exit 1
-fi
-/usr/bin/arch-chroot ${TARGET_DIR} pacman-key --lsign-key 0EE7A126
+# echo '==> pulling in external package repositories'
+# printf "\n%s\n%s\n" "[demz-repo-community]" "Server = file:///repo/\$repo/\$arch" >> /mnt/etc/pacman.conf
+# printf "\n%s\n%s\n" "[demz-repo-core]" "Server = file:///repo/\$repo/\$arch" >> /mnt/etc/pacman.conf
+# /usr/bin/arch-chroot ${TARGET_DIR} dirmngr < /dev/null
+# /usr/bin/arch-chroot ${TARGET_DIR} pacman-key -r 0EE7A126
+# if [[ $? != 0 ]]; then
+    # exit 1
+# fi
+# /usr/bin/arch-chroot ${TARGET_DIR} pacman-key --lsign-key 0EE7A126
+
+# Install the required packages in the image
 /usr/bin/arch-chroot ${TARGET_DIR} pacman -Sy --noconfirm ${PACKAGES}
 if [[ $? != 0 ]]; then
     exit 1
 fi
-/usr/bin/arch-chroot ${TARGET_DIR} syslinux-install_update -i -a -m
+
+# Setup the boot loader
+/usr/bin/arch-chroot ${TARGET_DIR} /usr/bin/syslinux-install_update -i -a -m
 /usr/bin/sed -i 's/sda3/vda1/' "${TARGET_DIR}/boot/syslinux/syslinux.cfg"
 /usr/bin/sed -i 's/TIMEOUT 50/TIMEOUT 10/' "${TARGET_DIR}/boot/syslinux/syslinux.cfg"
 
@@ -103,12 +112,17 @@ cat <<-EOF > "${TARGET_DIR}${CONFIG_SCRIPT}"
     # https://wiki.archlinux.org/index.php/Network_Configuration#Device_names
     /usr/bin/ln -s /dev/null /etc/udev/rules.d/80-net-setup-link.rules
     /usr/bin/ln -s '/usr/lib/systemd/system/dhcpcd@.service' '/etc/systemd/system/multi-user.target.wants/dhcpcd@eth0.service'
-    /usr/bin/sed -i 's/#UseDNS yes/UseDNS no/' /etc/ssh/sshd_config
+
+    # Configure ssh
+    sed -e '/^#PermitRootLogin prohibit-password$/c PermitRootLogin yes' \
+        -e '/^#UseDNS no$/c UseDNS no' \
+        -i /etc/ssh/sshd_config
+
     /usr/bin/systemctl enable sshd.service
 
     # zfs-test configuration
-    /usr/bin/groupadd zfs-tests
-    /usr/bin/useradd --comment 'ZFS Test User' -d /var/tmp/test_results --create-home --gid users --groups zfs-tests zfs-tests
+    # /usr/bin/groupadd zfs-tests
+    # /usr/bin/useradd --comment 'ZFS Test User' -d /var/tmp/test_results --create-home --gid users --groups zfs-tests zfs-tests
 
     # sudoers.d is the right way, but the zfs test suite checks /etc/sudoers...
     echo 'Defaults env_keep += "SSH_AUTH_SOCK"' > /etc/sudoers.d/10_zfs_test
@@ -116,8 +130,8 @@ cat <<-EOF > "${TARGET_DIR}${CONFIG_SCRIPT}"
     /usr/bin/chmod 0440 /etc/sudoers.d/10_zfs_test
 
     # clean up
-    /usr/bin/pacman -Rcns --noconfirm gptfdisk
-    /usr/bin/pacman -Scc --noconfirm
+    # /usr/bin/pacman -Rcns --noconfirm gptfdisk
+    # /usr/bin/pacman -Scc --noconfirm
 EOF
 
 echo '==> entering chroot and configuring system'
@@ -129,10 +143,12 @@ echo '==> adding workaround for shutdown race condition'
 /usr/bin/install --mode=0644 poweroff.timer "${TARGET_DIR}/etc/systemd/system/poweroff.timer"
 
 echo '==> installation complete!'
-/usr/bin/sleep 5
-/usr/bin/umount /mnt/repo
-/usr/bin/umount /mnt/var/cache/pacman/pkg
-/usr/bin/umount ${TARGET_DIR}
-/usr/bin/umount /var/cache/pacman/pkg
-/usr/bin/umount /repo
-/usr/bin/systemctl reboot
+
+# /usr/bin/sleep 10
+# /usr/bin/umount /mnt/repo
+# /usr/bin/umount /mnt/var/cache/pacman/pkg
+# /usr/bin/umount ${TARGET_DIR}
+# /usr/bin/umount /var/cache/pacman/pkg
+# /usr/bin/umount /repo
+
+# /usr/bin/systemctl reboot
