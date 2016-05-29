@@ -101,10 +101,6 @@ run_hook() {
             ;;
     esac
 
-    if [ ! -f "/etc/hostid" ] ; then
-        warning "ZFS: No hostid found on kernel command line or /etc/hostid. ZFS pools may not import correctly."
-    fi
-
     # Allow up to n seconds for zfs device to show up
     for i in {1..${ZFS_WAIT}}; do
         [[ -c "/dev/zfs" ]] && break
