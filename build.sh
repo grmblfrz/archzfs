@@ -306,11 +306,11 @@ if have_command "update_sums"; then
 
     run_cmd_show_and_capture_output "sha256sum ${script_dir}/src/zfs-utils/zfs-utils.initcpio.hook"
     azsha2=$(echo ${run_cmd_output} | awk '{ print $1 }')
-    run_cmd "sed -e 's/^zfs_initcpio_hook_hash.*/zfs_initcpio_hook_hash=\"${azsha1}\"/g' -i ${script_dir}/conf.sh"
+    run_cmd "sed -e 's/^zfs_initcpio_hook_hash.*/zfs_initcpio_hook_hash=\"${azsha2}\"/g' -i ${script_dir}/conf.sh"
 
     run_cmd_show_and_capture_output "sha256sum ${script_dir}/src/zfs-utils/zfs-utils.initcpio.install"
     azsha3=$(echo ${run_cmd_output} | awk '{ print $1 }')
-    run_cmd "sed -e 's/^zfs_initcpio_install_hash.*/zfs_initcpio_install_hash=\"${azsha1}\"/g' -i ${script_dir}/conf.sh"
+    run_cmd "sed -e 's/^zfs_initcpio_install_hash.*/zfs_initcpio_install_hash=\"${azsha3}\"/g' -i ${script_dir}/conf.sh"
 fi
 
 
@@ -337,7 +337,6 @@ for func in "${update_funcs[@]}"; do
     fi
     if have_command "make"; then
         build_packages
-        sign_packages
         build_sources
     fi
     if have_command "sources"; then

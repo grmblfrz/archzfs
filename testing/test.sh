@@ -13,12 +13,11 @@ fi
 source_safe "${script_dir}/../conf.sh"
 
 
-ssh_cmd="/USr/sbin/ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o ConnectTimeout=3 -p 2222"
+ssh_cmd="/usr/sbin/ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o ConnectTimeout=3 -p 2222"
 ssh_pass="sshpass -p azfstest"
 ssh="${ssh_pass} ${ssh_cmd}"
 test_pkg_workdir="archzfs"
 archiso_basename=$(basename ${archiso_url})
-
 
 export packer_work_dir="${script_dir}/packer_work"
 export base_image_output_dir="${packer_work_dir}"
@@ -92,16 +91,19 @@ for (( a = 0; a < $#; a++ )); do
 done
 
 
-gen_base_image_name
-
-
 if [[ $# -lt 1 ]]; then
     usage
-elif [[ ${mode} == "" || ${test_mode} == "" ]]; then
+fi
+
+
+if [[ ${mode} == "" || ${test_mode} == "" ]]; then
     echo
     error "A build mode and test command must be selected!"
     usage
 fi
+
+
+gen_base_image_name
 
 
 if [[ ${debug_flag} -eq 1 ]]; then
@@ -109,12 +111,6 @@ if [[ ${debug_flag} -eq 1 ]]; then
     ( set -o posix ; set | grep -v "\(LESS*\|LS_*\)")
     echo
 fi
-
-
-build_test_packages() {
-    msg "Building test packages for target ${mode}"
-    run_cmd "${script_dir}/../build.sh -h | tee ${script_dir}/testoutput.txt"
-}
 
 
 copy_latest_packages() {
@@ -128,6 +124,20 @@ copy_latest_packages() {
     fi
 }
 
+
+if [[ "${mode}" != "" ]]; then
+    # msg "Building test packages for target ${mode}"
+    # run_cmd "${script_dir}/../build.sh -h | tee ${script_dir}/testoutput.txt"
+
+
+    run_cmd "cd ../ && ./build.sh ${mode} update make -u -U"
+    if [[ ${run_cmd_return} -ne 0 ]]; then
+        error "Build failed!"
+        exit 1
+    fi
+fi
+
+exit
 
 # if have_command "base"; then
 if [[ "${test_mode}" != "" ]]; then
